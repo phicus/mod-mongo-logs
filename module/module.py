@@ -48,7 +48,8 @@ from shinken.modulesctx import modulesctx
 # Logline = livestatus.Logline
 from .log_line import (
     Logline,
-    LOGCLASS_INVALID
+    LOGCLASS_INVALID,
+    LOGCLASS_PASSIVECHECK
 )
 
 
@@ -415,12 +416,14 @@ class MongoLogs(BaseModule):
 
         logline = Logline(line=line)
         values = logline.as_dict()
-        if logline.logclass != LOGCLASS_INVALID:
-            logger.debug('[mongo-logs] store log line values: %s', values)
-            self.logs_cache.append(values)
-        else:
-            logger.info("[mongo-logs] This line is invalid: %s", line)
 
+        if logline.logclass == LOGCLASS_INVALID:
+            logger.info("[mongo-logs] This line is invalid: %s", line)
+            return
+        elif logline.logclass == LOGCLASS_PASSIVECHECK and 'cpe' in logline.host_name:
+            return
+        logger.debug('[mongo-logs] store log line values: %s', values)
+        self.logs_cache.append(values)
         return
 
     def record_availability(self, hostname, service, b):
