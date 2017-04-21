@@ -423,7 +423,7 @@ class MongoLogs(BaseModule):
         if logline.logclass == LOGCLASS_INVALID:
             logger.info("[mongo-logs] This line is invalid: %s", line)
             return
-        elif logline.logclass == LOGCLASS_PASSIVECHECK and 'cpe' in logline.host_name or logline.logclass == LOGCLASS_INFO or logline.logclass == LOGCLASS_PROGRAM or logline.logclass == LOGCLASS_COMMAND:
+        elif logline.logclass == LOGCLASS_PASSIVECHECK or logline.logclass == LOGCLASS_INFO or logline.logclass == LOGCLASS_PROGRAM or logline.logclass == LOGCLASS_COMMAND:
             return
         logger.debug('[mongo-logs] store log line values: %s', values)
         self.logs_cache.append(values)
