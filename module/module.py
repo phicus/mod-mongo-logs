@@ -61,7 +61,7 @@ try:
     from pymongo import MongoClient
     from pymongo.errors import AutoReconnect, ConnectionFailure
 except ImportError:
-    logger.error('[mongo-logs] Can not import pymongo and/or MongoClient'
+    logger.error('[krill-hostevents] Can not import pymongo and/or MongoClient'
                  'Your pymongo lib is too old. '
                  'Please install it with a 3.x+ version from '
                  'https://pypi.python.org/pypi/pymongo')
@@ -75,7 +75,7 @@ from collections import deque
 
 properties = {
     'daemons': ['broker', 'webui'],
-    'type': 'mongo-logs',
+    'type': 'krill_hostevents',
     'external': True,
     'phases': ['running'],
     }
@@ -83,7 +83,7 @@ properties = {
 
 # called by the plugin manager
 def get_instance(plugin):
-    logger.info("[mongo-logs] got an instance of MongoLogs for module: %s", plugin.get_name())
+    logger.info("[krill-hostevents] got an instance of MongoLogs for module: %s", plugin.get_name())
     instance = MongoLogs(plugin)
     return instance
 
@@ -103,38 +103,38 @@ class MongoLogs(BaseModule):
         BaseModule.__init__(self, mod_conf)
 
         self.uri = getattr(mod_conf, 'uri', 'mongodb://localhost')
-        logger.info('[mongo-logs] mongo uri: %s', self.uri)
+        logger.info('[krill-hostevents] mongo uri: %s', self.uri)
 
         self.replica_set = getattr(mod_conf, 'replica_set', None)
         if self.replica_set and int(pymongo.version[0]) < 3:
-            logger.error('[mongo-logs] Can not initialize module with '
+            logger.error('[krill-hostevents] Can not initialize module with '
                          'replica_set because your pymongo lib is too old. '
                          'Please install it with a 3.x+ version from '
                          'https://pypi.python.org/pypi/pymongo')
             return None
 
         self.database = getattr(mod_conf, 'database', 'shinken')
-        logger.info('[mongo-logs] database: %s', self.database)
+        logger.info('[krill-hostevents] database: %s', self.database)
 
         self.commit_period = int(getattr(mod_conf, 'commit_period', '60'))
-        logger.info('[mongo-logs] periodical commit period: %ds', self.commit_period)
+        logger.info('[krill-hostevents] periodical commit period: %ds', self.commit_period)
 
         self.commit_volume = int(getattr(mod_conf, 'commit_volume', '1000'))
-        logger.info('[mongo-logs] periodical commit volume: %d lines', self.commit_volume)
+        logger.info('[krill-hostevents] periodical commit volume: %d lines', self.commit_volume)
 
         self.db_test_period = int(getattr(mod_conf, 'db_test_period', '0'))
-        logger.info('[mongo-logs] periodical DB connection test period: %ds', self.db_test_period)
+        logger.info('[krill-hostevents] periodical DB connection test period: %ds', self.db_test_period)
 
         self.logs_collection = getattr(mod_conf, 'logs_collection', 'logs')
-        logger.info('[mongo-logs] logs collection: %s', self.logs_collection)
+        logger.info('[krill-hostevents] logs collection: %s', self.logs_collection)
 
         self.hav_collection = getattr(mod_conf, 'hav_collection', 'availability')
-        logger.info('[mongo-logs] hosts availability collection: %s', self.hav_collection)
+        logger.info('[krill-hostevents] hosts availability collection: %s', self.hav_collection)
 
         max_logs_age = getattr(mod_conf, 'max_logs_age', '365')
         maxmatch = re.match(r'^(\d+)([dwmy]*)$', max_logs_age)
         if not maxmatch:
-            logger.error('[mongo-logs] Wrong format for max_logs_age. Must be <number>[d|w|m|y] or <number> and not %s' % max_logs_age)
+            logger.error('[krill-hostevents] Wrong format for max_logs_age. Must be <number>[d|w|m|y] or <number> and not %s' % max_logs_age)
             return None
         else:
             if not maxmatch.group(2):
@@ -147,11 +147,11 @@ class MongoLogs(BaseModule):
                 self.max_logs_age = int(maxmatch.group(1)) * 31
             elif maxmatch.group(2) == 'y':
                 self.max_logs_age = int(maxmatch.group(1)) * 365
-        logger.info('[mongo-logs] max_logs_age: %s', self.max_logs_age)
+        logger.info('[krill-hostevents] max_logs_age: %s', self.max_logs_age)
 
         self.services_cache = {}
         services_filter = getattr(mod_conf, 'services_filter', '')
-        logger.info('[mongo-logs] services filtering: %s', services_filter)
+        logger.info('[krill-hostevents] services filtering: %s', services_filter)
 
         self.filter_service_description = None
         self.filter_service_criticality = None
@@ -162,7 +162,7 @@ class MongoLogs(BaseModule):
                 rule = rule.strip()
                 if not rule:
                     continue
-                logger.info('[mongo-logs] services filtering rule: %s', rule)
+                logger.info('[krill-hostevents] services filtering rule: %s', rule)
                 elts = rule.split(':', 1)
 
                 t = 'service_description'
@@ -172,11 +172,11 @@ class MongoLogs(BaseModule):
 
                 if t == 'service_description':
                     self.filter_service_description = rule
-                    logger.info('[mongo-logs] services will be filtered by description: %s', self.filter_service_description)
+                    logger.info('[krill-hostevents] services will be filtered by description: %s', self.filter_service_description)
 
                 if t == 'bp' or t == 'bi':
                     self.filter_service_criticality = s
-                    logger.info('[mongo-logs] services will be filtered by criticality: %s', self.filter_service_criticality)
+                    logger.info('[krill-hostevents] services will be filtered by criticality: %s', self.filter_service_criticality)
 
 
         # Elasticsearch configuration part ... prepare next version !
@@ -186,10 +186,10 @@ class MongoLogs(BaseModule):
                 # import rawes
                 # from rawes.elastic_exception import ElasticException
             # except ImportError:
-                # logger.error('[mongo-logs] Can not import rawes library. Data will not be sent to your configured ElasticSearch: %s', self.elasticsearch_uri)
+                # logger.error('[krill-hostevents] Can not import rawes library. Data will not be sent to your configured ElasticSearch: %s', self.elasticsearch_uri)
                 # self.elasticsearch_uri = None
             # else:
-                # logger.info('[mongo-logs] data will be sent to ElasticSearch: %s', self.elasticsearch_uri)
+                # logger.info('[krill-hostevents] data will be sent to ElasticSearch: %s', self.elasticsearch_uri)
 
 
         self.is_connected = DISCONNECTED
@@ -217,24 +217,24 @@ class MongoLogs(BaseModule):
         Update log rotation time to force a log rotation
         """
         self.con = MongoClient(self.uri, connect=False)
-        logger.info("[mongo-logs] trying to connect MongoDB: %s", self.uri)
+        logger.info("[krill-hostevents] trying to connect MongoDB: %s", self.uri)
         try:
             result = self.con.admin.command("ismaster")
-            logger.info("[mongo-logs] connected to MongoDB, admin: %s", result)
-            logger.debug("[mongo-logs] server information: %s", self.con.server_info())
+            logger.info("[krill-hostevents] connected to MongoDB, admin: %s", result)
+            logger.debug("[krill-hostevents] server information: %s", self.con.server_info())
 
             self.db = getattr(self.con, self.database)
-            logger.info("[mongo-logs] connected to the database: %s (%s)", self.database, self.db)
+            logger.info("[krill-hostevents] connected to the database: %s (%s)", self.database, self.db)
 
             self.is_connected = CONNECTED
             self.next_logs_rotation = time.time()
 
-            logger.info('[mongo-logs] database connection established')
+            logger.info('[krill-hostevents] database connection established')
         except ConnectionFailure as e:
-            logger.error("[mongo-logs] Server is not available: %s", str(e))
+            logger.error("[krill-hostevents] Server is not available: %s", str(e))
             return False
         except Exception as e:
-            logger.error("[mongo-logs] Could not open the database", str(e))
+            logger.error("[krill-hostevents] Could not open the database", str(e))
             raise MongoLogsError
 
         return True
@@ -242,7 +242,7 @@ class MongoLogs(BaseModule):
     def close(self):
         self.is_connected = DISCONNECTED
         self.con.close()
-        logger.info('[mongo-logs] database connection closed')
+        logger.info('[krill-hostevents] database connection closed')
 
     def commit(self):
         pass
@@ -254,10 +254,10 @@ class MongoLogs(BaseModule):
         if not self.is_connected == CONNECTED:
             if not self.open():
                 self.next_logs_rotation = time.time() + 600
-                logger.info("[mongo-logs] log rotation failed, next log rotation at %s " % time.asctime(time.localtime(self.next_logs_rotation)))
+                logger.info("[krill-hostevents] log rotation failed, next log rotation at %s " % time.asctime(time.localtime(self.next_logs_rotation)))
                 return
 
-        logger.info("[mongo-logs] rotating logs ...")
+        logger.info("[krill-hostevents] rotating logs ...")
 
         now = time.time()
         today = datetime.date.today()
@@ -265,7 +265,7 @@ class MongoLogs(BaseModule):
         today0005 = datetime.datetime(today.year, today.month, today.day, 0, 5, 0)
         oldest = today0000 - datetime.timedelta(days=self.max_logs_age)
         result = self.db[self.logs_collection].delete_many({u'time': {'$lt': time.mktime(oldest.timetuple())}})
-        logger.info("[mongo-logs] removed %d logs older than %s days.", result.deleted_count, self.max_logs_age)
+        logger.info("[krill-hostevents] removed %d logs older than %s days.", result.deleted_count, self.max_logs_age)
 
         if now < time.mktime(today0005.timetuple()):
             next_rotation = today0005
@@ -274,7 +274,7 @@ class MongoLogs(BaseModule):
 
         # See you tomorrow
         self.next_logs_rotation = time.mktime(next_rotation.timetuple())
-        logger.info("[mongo-logs] next log rotation at %s " % time.asctime(time.localtime(self.next_logs_rotation)))
+        logger.info("[krill-hostevents] next log rotation at %s " % time.asctime(time.localtime(self.next_logs_rotation)))
 
     def commit_logs(self):
         """
@@ -285,13 +285,13 @@ class MongoLogs(BaseModule):
 
         if not self.is_connected == CONNECTED:
             if not self.open():
-                logger.warning("[mongo-logs] log commiting failed")
-                logger.warning("[mongo-logs] %d lines to insert in database", len(self.logs_cache))
+                logger.warning("[krill-hostevents] log commiting failed")
+                logger.warning("[krill-hostevents] %d lines to insert in database", len(self.logs_cache))
                 return
 
-        logger.debug("[mongo-logs] commiting ...")
+        logger.debug("[krill-hostevents] commiting ...")
 
-        logger.debug("[mongo-logs] %d lines to insert in database (max insertion is %d lines)", len(self.logs_cache), self.commit_volume)
+        logger.debug("[krill-hostevents] %d lines to insert in database (max insertion is %d lines)", len(self.logs_cache), self.commit_volume)
 
         # Flush all the stored log lines
         logs_to_commit = 1
@@ -305,28 +305,28 @@ class MongoLogs(BaseModule):
                 if logs_to_commit >= self.commit_volume:
                     break
             except IndexError:
-                logger.debug("[mongo-logs] prepared all available logs for commit")
+                logger.debug("[krill-hostevents] prepared all available logs for commit")
                 break
             except Exception, exp:
-                logger.error("[mongo-logs] exception: %s", str(exp))
-        logger.debug("[mongo-logs] time to prepare %s logs for commit (%2.4f)", logs_to_commit, time.time() - now)
+                logger.error("[krill-hostevents] exception: %s", str(exp))
+        logger.debug("[krill-hostevents] time to prepare %s logs for commit (%2.4f)", logs_to_commit, time.time() - now)
 
         now = time.time()
         try:
             # Insert lines to commit
             result = self.db[self.logs_collection].insert_many(some_logs)
-            logger.debug("[mongo-logs] inserted %d logs.", len(result.inserted_ids))
+            logger.debug("[krill-hostevents] inserted %d logs.", len(result.inserted_ids))
 
             # Request the server to flush data on files
             self.con.fsync(async=True)
         except AutoReconnect, exp:
-            logger.error("[mongo-logs] Autoreconnect exception when inserting lines: %s", str(exp))
+            logger.error("[krill-hostevents] Autoreconnect exception when inserting lines: %s", str(exp))
             self.is_connected = SWITCHING
             # Abort commit ... will be finished next time!
         except Exception, exp:
             self.close()
-            logger.error("[mongo-logs] Database error occurred when commiting: %s", exp)
-        logger.debug("[mongo-logs] time to insert %s logs (%2.4f)", logs_to_commit, time.time() - now)
+            logger.error("[krill-hostevents] Database error occurred when commiting: %s", exp)
+        logger.debug("[krill-hostevents] time to insert %s logs (%2.4f)", logs_to_commit, time.time() - now)
 
     def manage_brok(self, brok):
         """
@@ -342,28 +342,28 @@ class MongoLogs(BaseModule):
         host_name = brok.data['host_name']
         service_description = ''
         service_id = host_name+"/"+service_description
-        logger.debug("[mongo-logs] initial host status received: %s (bi=%d)", host_name, int (brok.data["business_impact"]))
+        logger.debug("[krill-hostevents] initial host status received: %s (bi=%d)", host_name, int (brok.data["business_impact"]))
 
         self.services_cache[service_id] = { "hostname": host_name, "service": service_description }
-        logger.info("[mongo-logs] host registered: %s (bi=%d)", service_id, brok.data["business_impact"])
+        logger.info("[krill-hostevents] host registered: %s (bi=%d)", service_id, brok.data["business_impact"])
 
     def manage_host_check_result_brok(self, brok):
         start = time.clock()
         host_name = brok.data['host_name']
         service_description = ''
         service_id = host_name+"/"+service_description
-        logger.debug("[mongo-logs] host check result received: %s", service_id)
+        logger.debug("[krill-hostevents] host check result received: %s", service_id)
 
         if self.services_cache and service_id in self.services_cache:
             self.record_availability(host_name, service_description, brok)
-            logger.debug("[mongo-logs] host check result: %s, %.2gs", service_id, time.clock() - start)
+            logger.debug("[krill-hostevents] host check result: %s, %.2gs", service_id, time.clock() - start)
 
     def manage_initial_service_status_brok(self, brok):
         start = time.clock()
         host_name = brok.data['host_name']
         service_description = brok.data['service_description']
         service_id = host_name+"/"+service_description
-        logger.debug("[mongo-logs] initial service status received: %s (bi=%d)", host_name, int (brok.data["business_impact"]))
+        logger.debug("[krill-hostevents] initial service status received: %s (bi=%d)", host_name, int (brok.data["business_impact"]))
 
         # Filter service if needed: reference service in services cache ...
         # ... if description filter matches ...
@@ -371,7 +371,7 @@ class MongoLogs(BaseModule):
             pat = re.compile(self.filter_service_description, re.IGNORECASE)
             if pat.search(service_id):
                 self.services_cache[service_id] = { "hostname": host_name, "service": service_description }
-                logger.info("[mongo-logs] service description filter matches for: %s (bi=%d)", service_id, brok.data["business_impact"])
+                logger.info("[krill-hostevents] service description filter matches for: %s (bi=%d)", service_id, brok.data["business_impact"])
 
         # ... or if criticality filter matches.
         if self.filter_service_criticality:
@@ -394,18 +394,18 @@ class MongoLogs(BaseModule):
                     include = True
             if include:
                 self.services_cache[service_id] = { "hostname": host_name, "service": service_description }
-                logger.info("[mongo-logs] criticality filter matches for: %s (bi=%d)", service_id, brok.data["business_impact"])
+                logger.info("[krill-hostevents] criticality filter matches for: %s (bi=%d)", service_id, brok.data["business_impact"])
 
     def manage_service_check_result_brok(self, brok):
         start = time.clock()
         host_name = brok.data['host_name']
         service_description = brok.data['service_description']
         service_id = host_name+"/"+service_description
-        logger.debug("[mongo-logs] service check result received: %s", service_id)
+        logger.debug("[krill-hostevents] service check result received: %s", service_id)
 
         if self.services_cache and service_id in self.services_cache:
             self.record_availability(host_name, service_description, brok)
-            logger.debug("[mongo-logs] service check result: %s, %.2gs", service_id, time.clock() - start)
+            logger.debug("[krill-hostevents] service check result: %s, %.2gs", service_id, time.clock() - start)
 
     def manage_log_brok(self, brok):
         """
@@ -414,18 +414,18 @@ class MongoLogs(BaseModule):
         line = brok.data['log']
         if re.match("^\[[0-9]*\] [A-Z][a-z]*.:", line):
             # Match log which NOT have to be stored
-            logger.warning('[mongo-logs] do not store: %s', line)
+            logger.warning('[krill-hostevents] do not store: %s', line)
             return
 
         logline = Logline(line=line)
         values = logline.as_dict()
 
         if logline.logclass == LOGCLASS_INVALID:
-            logger.info("[mongo-logs] This line is invalid: %s", line)
+            logger.info("[krill-hostevents] This line is invalid: %s", line)
             return
         elif logline.logclass == LOGCLASS_PASSIVECHECK or logline.logclass == LOGCLASS_INFO or logline.logclass == LOGCLASS_PROGRAM or logline.logclass == LOGCLASS_COMMAND:
             return
-        logger.debug('[mongo-logs] store log line values: %s', values)
+        logger.debug('[krill-hostevents] store log line values: %s', values)
         self.logs_cache.append(values)
         return
 
@@ -458,16 +458,16 @@ class MongoLogs(BaseModule):
         'in_scheduled_downtime': False
         """
         if not self.is_connected == CONNECTED:
-            logger.warning("[mongo-logs] availability not recorded: %s/%s: %s", hostname, service, b.data)
+            logger.warning("[krill-hostevents] availability not recorded: %s/%s: %s", hostname, service, b.data)
             return
 
-        logger.debug("[mongo-logs] record availability for: %s/%s: %s", hostname, service, b.data['state'])
-        logger.debug("[mongo-logs] record availability: %s/%s: %s", hostname, service, b.data)
+        logger.debug("[krill-hostevents] record availability for: %s/%s: %s", hostname, service, b.data['state'])
+        logger.debug("[krill-hostevents] record availability: %s/%s: %s", hostname, service, b.data)
 
 
         # Ignoring SOFT states ...
         # if b.data['state_type_id']==0:
-            # logger.warning("[mongo-logs] record availability for: %s/%s, but no HARD state, ignoring ...", hostname, service)
+            # logger.warning("[krill-hostevents] record availability for: %s/%s, but no HARD state, ignoring ...", hostname, service)
 
 
         # Compute number of seconds today ...
@@ -491,7 +491,7 @@ class MongoLogs(BaseModule):
             self.availability_cache[query] = self.db[self.hav_collection].find_one( q_day )
             if '_id' in self.availability_cache[query]:
                 exists = True
-                logger.debug("[mongo-logs] found a today record for: %s", query)
+                logger.debug("[krill-hostevents] found a today record for: %s", query)
 
                 # Test if yesterday record exists ...
                 # TODO: Not yet implemented:
@@ -499,11 +499,11 @@ class MongoLogs(BaseModule):
                 # data_yesterday = self.db[self.hav_collection].find_one( q_yesterday )
                 # if '_id' in data_yesterday:
                     # exists = True
-                    # logger.info("[mongo-logs] found a yesterday record for: %s", query)
+                    # logger.info("[krill-hostevents] found a yesterday record for: %s", query)
         except TypeError, exp:
-            logger.debug("[mongo-logs] Exception when querying database - no cache query available: %s", str(exp))
+            logger.debug("[krill-hostevents] Exception when querying database - no cache query available: %s", str(exp))
         except Exception, exp:
-            logger.error("[mongo-logs] Exception when querying database: %s", str(exp))
+            logger.error("[krill-hostevents] Exception when querying database: %s", str(exp))
             return
 
         # Configure recorded data
@@ -513,7 +513,7 @@ class MongoLogs(BaseModule):
         last_check_state = self.availability_cache[query]['last_check_state'] if exists else 3
         last_check_timestamp = self.availability_cache[query]['last_check_timestamp'] if exists else midnight_timestamp
         since_last_check = 0
-        logger.debug("[mongo-logs] current state: %s, last state: %s", current_state, last_state)
+        logger.debug("[krill-hostevents] current state: %s, last state: %s", current_state, last_state)
 
         # Host/service check
         last_check = b.data['last_chk']
@@ -568,16 +568,16 @@ class MongoLogs(BaseModule):
 
         # Store cached values ...
         try:
-            logger.debug("[mongo-logs] store for: %s", self.availability_cache[query])
+            logger.debug("[krill-hostevents] store for: %s", self.availability_cache[query])
             # self.db[self.hav_collection].save(self.availability_cache[query])
             self.db[self.hav_collection].replace_one(q_day, self.availability_cache[query], upsert=True)
         except AutoReconnect, exp:
-            logger.error("[mongo-logs] Autoreconnect exception when updating availability: %s", str(exp))
+            logger.error("[krill-hostevents] Autoreconnect exception when updating availability: %s", str(exp))
             self.is_connected = SWITCHING
             # Abort update ... no backlog management currently!
         except Exception, exp:
             self.is_connected = DISCONNECTED
-            logger.error("[mongo-logs] Database error occurred: %s", exp)
+            logger.error("[krill-hostevents] Database error occurred: %s", exp)
             raise MongoLogsError
 
     def main(self):
@@ -591,28 +591,28 @@ class MongoLogs(BaseModule):
         db_test_connection = time.time()
 
         while not self.interrupted:
-            logger.debug("[mongo-logs] queue length: %s", self.to_q.qsize())
+            logger.debug("[krill-hostevents] queue length: %s", self.to_q.qsize())
             now = time.time()
 
             # DB connection test ?
             if self.db_test_period and db_test_connection < now:
-                logger.debug("[mongo-logs] Testing database connection ...")
+                logger.debug("[krill-hostevents] Testing database connection ...")
                 # Test connection every 5 seconds ...
                 db_test_connection = now + self.db_test_period
                 if self.is_connected == DISCONNECTED:
-                    logger.warning("[mongo-logs] Trying to connect database ...")
+                    logger.warning("[krill-hostevents] Trying to connect database ...")
                     self.open()
 
             # Logs commit ?
             if db_commit_next_time < now:
-                logger.debug("[mongo-logs] Logs commit time ...")
+                logger.debug("[krill-hostevents] Logs commit time ...")
                 # Commit periodically ...
                 db_commit_next_time = now + self.commit_period
                 self.commit_logs()
 
             # Logs rotation ?
             if self.next_logs_rotation < now:
-                logger.debug("[mongo-logs] Logs rotation time ...")
+                logger.debug("[krill-hostevents] Logs rotation time ...")
                 self.rotate_logs()
 
             # Broks management ...
@@ -621,7 +621,7 @@ class MongoLogs(BaseModule):
                 b.prepare()
                 self.manage_brok(b)
 
-            logger.debug("[mongo-logs] time to manage %s broks (%3.4fs)", len(l), time.time() - now)
+            logger.debug("[krill-hostevents] time to manage %s broks (%3.4fs)", len(l), time.time() - now)
 
         # Close database connection
         self.close()
